@@ -12,6 +12,7 @@ import json
 import os
 import signal
 import logging
+import threading
 from pathlib import Path
 from typing import Any, Callable
 
@@ -24,6 +25,7 @@ class _Config:
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
         self._callbacks: list[Callable[[dict[str, Any]], None]] = []
+        self._lock = threading.Lock()
         self._reload_count = 0
         self._setup_signal()
 
@@ -40,7 +42,13 @@ class _Config:
         self.load()
 
     def load(self, path: str | None = None) -> dict[str, Any]:
-        """Load config from JSON file. Returns the parsed dict."""
+        """Load config from JSON file. Returns the parsed dict.
+
+        Thread-safety: builds the new dict in a local variable, then does a
+        single atomic reference replacement (``self._data = new_data``).  This
+        is safe in CPython even when called from a signal handler because no
+        lock acquisition is needed on the data-read path.
+        """
         p = Path(path or CONFIG_PATH)
         if not p.exists():
             logger.warning("Config file not found: %s — using empty config", p)
@@ -48,22 +56,32 @@ class _Config:
             return self._data
 
         with open(p) as f:
-            self._data = json.load(f)
+            new_data = json.load(f)
+
+        # Atomic reference replacement — readers see either the old or new
+        # dict, never a partially-updated one.
+        self._data = new_data
 
         self._reload_count += 1
-        logger.info("Config loaded from %s (%d keys)", p, len(self._data))
+        logger.info("Config loaded from %s (%d keys)", p, len(new_data))
 
-        for cb in self._callbacks:
+        # Snapshot callbacks under lock so iteration is safe even if another
+        # thread appends a callback concurrently.
+        with self._lock:
+            callbacks = list(self._callbacks)
+
+        for cb in callbacks:
             try:
-                cb(self._data)
+                cb(new_data)
             except Exception:
                 logger.exception("Error in config reload callback")
 
-        return self._data
+        return new_data
 
     def on_reload(self, callback: Callable[[dict[str, Any]], None]) -> None:
         """Register a function to be called whenever config is reloaded."""
-        self._callbacks.append(callback)
+        with self._lock:
+            self._callbacks.append(callback)
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a config value by key."""
