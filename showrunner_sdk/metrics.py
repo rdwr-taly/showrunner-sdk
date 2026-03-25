@@ -129,6 +129,7 @@ class _Metrics:
             daemon=True,
         )
         self._thread.start()
+        self._collect_process_metrics()  # prime CPU sample
         logger.info("Metrics server listening on :%d", port)
 
     def stop_server(self) -> None:
