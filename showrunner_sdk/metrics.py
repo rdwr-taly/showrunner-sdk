@@ -39,6 +39,12 @@ from showrunner_sdk.health import health
 
 logger = logging.getLogger("showrunner.metrics")
 
+
+class _ReuseAddrHTTPServer(HTTPServer):
+    """HTTPServer subclass that sets SO_REUSEADDR to avoid 'Address already in use'
+    errors when the process restarts quickly (common in container recycling)."""
+    allow_reuse_address = True
+
 METRICS_PORT = int(os.environ.get("SHOWRUNNER_METRICS_PORT", "9090"))
 
 
@@ -46,7 +52,7 @@ class _Metrics:
     def __init__(self) -> None:
         self.registry = CollectorRegistry()
         self._start_time = time.time()
-        self._server: HTTPServer | None = None
+        self._server: _ReuseAddrHTTPServer | None = None
         self._thread: threading.Thread | None = None
 
         # ── Base metrics (free for every app) ──
@@ -116,7 +122,7 @@ class _Metrics:
         config.on_reload(lambda _: self._config_reloads.inc())
 
         handler = self._make_handler()
-        self._server = HTTPServer(("0.0.0.0", port), handler)
+        self._server = _ReuseAddrHTTPServer(("0.0.0.0", port), handler)
         self._thread = threading.Thread(
             target=self._server.serve_forever,
             name="showrunner-metrics",
