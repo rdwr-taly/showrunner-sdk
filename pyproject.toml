@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "showrunner-sdk"
+version = "0.1.0"
+description = "Minimal SDK for integrating any application with ShowRunner"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "prometheus-client>=0.20",
+]
+
+[project.optional-dependencies]
+full = ["psutil>=5.9"]
+
+[tool.setuptools.packages.find]
+include = ["showrunner_sdk*"]
