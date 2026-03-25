@@ -1,0 +1,76 @@
+{
+  "$schema": "showrunner/v1",
+  "id": "my-app",
+  "name": "My Application",
+  "description": "Brief description of what this app does",
+  "category": "Category",
+  "icon": "fas fa-cube",
+
+  "_comment_lifecycle": "Options: long-running, ephemeral, recurrent, scheduled",
+  "lifecycle": "long-running",
+
+  "image": {
+    "name": "your-dockerhub-user/your-app"
+  },
+
+  "sdk": {
+    "version": ">=0.1.0",
+    "metrics_port": 9090,
+    "health_path": "/healthz",
+    "metrics_path": "/metrics"
+  },
+
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "target_url": {
+        "type": "string",
+        "title": "Target URL",
+        "description": "The URL this app will target"
+      },
+      "rate_limit": {
+        "type": "integer",
+        "title": "Rate Limit",
+        "default": 10
+      },
+      "debug": {
+        "type": "boolean",
+        "title": "Debug Mode",
+        "default": false
+      }
+    },
+    "required": ["target_url"]
+  },
+
+  "ui": {
+    "sections": [
+      {
+        "title": "Configuration",
+        "fields": ["target_url", "rate_limit"]
+      },
+      {
+        "title": "Advanced",
+        "fields": ["debug"]
+      }
+    ],
+    "card_fields": {
+      "primary_label": "target_url",
+      "metrics": ["my_custom_metric"]
+    }
+  },
+
+  "_comment_scheduling": "Only needed for recurrent/scheduled lifecycles. Remove for long-running/ephemeral.",
+  "scheduling": {
+    "type": "interval",
+    "default_interval_value": 20,
+    "default_interval_unit": "minutes",
+    "max_concurrent_runs": 1,
+    "overlap_policy": "skip"
+  },
+
+  "capabilities": {
+    "can_stop": true,
+    "can_redeploy": true,
+    "can_resume": false
+  }
+}

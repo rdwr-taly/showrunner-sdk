@@ -139,3 +139,75 @@ metrics.set_app_info(name="traffic-generator", version="1.0.7")
 - `*_adapter.py`
 - `container_control_core.py` (if copied)
 - `git clone` of container-control in Dockerfile
+
+## Templates — onboard a new app in minutes
+
+The `templates/` directory has everything you need to add a new app to ShowRunner:
+
+```
+templates/
+  main.py                          # Entry point template (copy + edit)
+  Dockerfile                       # Docker template with SDK pre-configured
+  requirements.txt                 # Includes showrunner-sdk
+  .showrunner/
+    appspec.json                   # App definition for ShowRunner (edit fields)
+    release.json                   # Auto-updated by CI on each release
+  .github/
+    workflows/
+      release.yml                  # Manual dispatch: build, push, update release.json
+```
+
+### To onboard a new app:
+
+1. Copy `templates/` contents into your repo
+2. Edit `main.py` — wire your app's start/stop logic
+3. Edit `.showrunner/appspec.json` — set your app's ID, name, config schema
+4. Set GitHub repo secrets: `DOCKER_USERNAME`, `DOCKER_PASSWORD`
+5. Set GitHub repo variable: `DOCKER_IMAGE_NAME` (e.g., `razor29/my-app`)
+6. Push. Done.
+
+ShowRunner discovers the app by reading `.showrunner/appspec.json` and `.showrunner/release.json` from any registered GitHub repo (public or private with PAT).
+
+## `.showrunner/appspec.json` — unified app specification
+
+```json
+{
+  "$schema": "showrunner/v1",
+  "id": "my-app",
+  "name": "My Application",
+  "description": "What it does",
+  "lifecycle": "long-running",
+  "image": { "name": "dockerhub-user/my-app" },
+  "sdk": { "metrics_port": 9090 },
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "target_url": { "type": "string", "title": "Target URL" },
+      "rate_limit": { "type": "integer", "title": "Rate Limit", "default": 10 }
+    },
+    "required": ["target_url"]
+  },
+  "ui": {
+    "sections": [
+      { "title": "Config", "fields": ["target_url", "rate_limit"] }
+    ]
+  }
+}
+```
+
+**Lifecycle types:** `long-running` (stays up), `ephemeral` (runs once, exits), `recurrent` (scheduled job), `scheduled` (one-time with start/end time)
+
+## `.showrunner/release.json` — auto-updated by CI
+
+```json
+{
+  "image": "razor29/my-app:v1.2.0",
+  "version": "v1.2.0",
+  "is_latest": true,
+  "released_at": "2026-03-25T18:00:00Z",
+  "commit": "abc1234",
+  "changelog": "Added feature X"
+}
+```
+
+ShowRunner reads this to know the latest available version. The GitHub Action updates it automatically on each release.

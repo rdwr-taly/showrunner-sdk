@@ -1,0 +1,4 @@
+# ShowRunner SDK — config, metrics, health
+showrunner-sdk[full]>=0.1.0
+
+# Add your app's dependencies below:
